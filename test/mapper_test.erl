@@ -25,9 +25,6 @@ t1() ->
     ?assertEqual(
        sys:get_state(Pid), 
        {mapper_data, Map, ["test_1", "test_2", "test_4"], 
-        ["test_2", "test_1"], ["test_4"]})
-
-
-        .
+        ["test_2", "test_1"], ["test_4"]}).
 
 

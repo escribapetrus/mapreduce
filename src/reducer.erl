@@ -1,32 +1,27 @@
-%% Mapper is a gen_server that processes a list of keys,
+%% Reducer is a gen_server that processes a list of keys previously processed by reducer,
 %% fetching files by keys (filenames) in the file system (fs) 
-%% and applying the Map function.
+%% and applying the Reduce Function
 %%
-%% The Map function has the following signature:
-%% ({K :: binary(), V :: binary()}) -> {Key :: binary(), V :: binary()}
+%% The Reduce Function has the following signature: 
+%% ({K1 :: binary(), V1 :: binary()} -> {K2 :: binary(), V2 :: binary()}
+%% where V1 is a file that collects all values for a given key,
+%% and V2 is the final result for a given key.
 %%
-%% every key spawns a process concurrently maps the data.
+%% every key spawns a process that concurrently reduces the data.
 
-%% TODO: 
-%% Two options:
-%% - emit appends data to a file in the reducer file system,
-%%   then processed when the mapper finishes processing (receives all keys as completed/failed)
-%% - emit passes the processed KV to the reducer in memory
 
--module(mapper).
+-module(reducer).
 -behaviour(gen_server).
 
 -export([start_link/0, put_function/1, put_keys/1, run/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
+-record(reducer_data, {
+                       function = undefined,
+                       input = [],
+                       completed = [],
+                       failed = []}).
 
--record(mapper_data, {
-                      function = undefined, 
-                      input = [], 
-                      completed = [], 
-                      failed = []}).
-
-%% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 put_function(F) -> gen_server:cast(?MODULE, {put_function, F}).
@@ -40,36 +35,34 @@ put_failed(Key) -> gen_server:cast(?MODULE, {put_failed, Key}).
 run() -> gen_server:cast(?MODULE, run).
 
 emit({Key, Val}) ->
-    io:format("Emitted: KEY[~p], VAL[~p]~n", [Key, Val]), 
+    io:format("Emitted: KEY[~p], VAL[~p]~n", [Key, Val]),
     {ok, {Key, Val}}.
 
-
-%% Callbacks
 init([]) ->
-    {ok, #mapper_data{}}.
+    {ok, #reducer_data{}}.
 
 handle_call(_, _, Data) ->
     {reply, Data, Data}.
 
 handle_cast({put_function, F}, Data) ->
-    {noreply, Data#mapper_data{function=F}};
+    {noreply, Data#reducer_data{function=F}};
 
 handle_cast({put_keys, Keys}, Data) when is_list(Keys) ->
-    {noreply, Data#mapper_data{input = Keys}};
+    {noreply, Data#reducer_data{input = Keys}};
 handle_cast({put_keys, Key}, Data) ->
-    {noreply, Data#mapper_data{input = [Key | Data#mapper_data.input]}};
+    {noreply, Data#reducer_data{input = [Key | Data#reducer_data.input]}};
 
-handle_cast(run, #mapper_data{input = []} = Data) ->
+handle_cast(run, #reducer_data{input = []} = Data) ->
     io:format("Error: input is empty. Please provide keys to be mapped~n", []),
     {noreply, Data};
-handle_cast(run, #mapper_data{function = undefined} = Data) ->
-    io:format("Error: function is nil. Please provide a map function"),
+handle_cast(run, #reducer_data{function = undefined} = Data) ->
+    io:format("Error: function is nil. Please provide a reduce function"),
     {noreply, Data};
-handle_cast(run, #mapper_data{function = Map, input = Inputs} = Data) ->
+handle_cast(run, #reducer_data{function = Map, input = Inputs} = Data) ->
     F = fun(K) -> 
                 spawn(fun() -> 
                               try  
-                                  {ok, FileData} = fs:read(K, map),
+                                  {ok, FileData} = fs:read(K, reduce),
                                   {ok, _Emitted} = emit(Map({K, FileData}))
                               of
                                   _ -> 
@@ -84,9 +77,9 @@ handle_cast(run, #mapper_data{function = Map, input = Inputs} = Data) ->
     lists:foreach(F, Inputs),
     {noreply, Data};
 
-handle_cast({put_completed, Key}, #mapper_data{input = Input} = Data) ->
-    NewData = Data#mapper_data{completed = [Key | Data#mapper_data.completed]},
-    Processed = lists:flatten([NewData#mapper_data.completed, NewData#mapper_data.failed]),
+handle_cast({put_completed, Key}, #reducer_data{input = Input} = Data) ->
+    NewData = Data#reducer_data{completed = [Key | Data#reducer_data.completed]},
+    Processed = lists:flatten([NewData#reducer_data.completed, NewData#reducer_data.failed]),
     if length(Input) == length(Processed)  ->
             io:format("Finished processing.~n", []),
             {noreply, NewData};
@@ -95,9 +88,9 @@ handle_cast({put_completed, Key}, #mapper_data{input = Input} = Data) ->
             {noreply, NewData}
     end;
 
-handle_cast({put_failed, Key}, #mapper_data{input = Input} = Data) ->
-    NewData = Data#mapper_data{failed = [Key | Data#mapper_data.failed]},
-    Processed = lists:flatten([NewData#mapper_data.completed, NewData#mapper_data.failed]),
+handle_cast({put_failed, Key}, #reducer_data{input = Input} = Data) ->
+    NewData = Data#reducer_data{failed = [Key | Data#reducer_data.failed]},
+    Processed = lists:flatten([NewData#reducer_data.completed, NewData#reducer_data.failed]),
     if length(Input) == length(Processed)  ->
             io:format("Finished processing.~n", []),
             {noreply, NewData};
