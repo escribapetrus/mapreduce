@@ -3,7 +3,7 @@
 %% and applying the Map function.
 %%
 %% The Map function has the following signature:
-%% ({K :: binary(), V :: binary()}) -> {Key :: binary(), V :: binary()}
+%% ({K, V}) -> {K2 :: binary(), V2 :: binary()} | [{K2, V2}]
 %%
 %% every key spawns a process concurrently maps the data.
 
@@ -51,7 +51,7 @@ spawn_mappers(F, Inputs) ->
                           spawn(fun() -> 
                                         try  
                                             {ok, FileData} = fs:read(K, map),
-                                            emit(F({K, FileData}))
+					    emit(F({K, FileData}))
                                         of
                                             _ ->
                                                 put_completed(K)

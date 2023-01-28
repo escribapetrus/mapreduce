@@ -16,12 +16,12 @@
 -export([start_link/0, put_function/1, put_keys/1, run/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
--record(reducer_data, {
-                       function = undefined,
+-record(reducer_data, {function = undefined,
                        input = [],
                        completed = [],
                        failed = []}).
 
+%% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 put_function(F) -> gen_server:cast(?MODULE, {put_function, F}).
@@ -34,10 +34,31 @@ put_failed(Key) -> gen_server:cast(?MODULE, {put_failed, Key}).
 
 run() -> gen_server:cast(?MODULE, run).
 
+%% Private functions
 emit({Key, Val}) ->
     io:format("Emitted: KEY[~p], VAL[~p]~n", [Key, Val]),
     {ok, {Key, Val}}.
 
+spawn_reducers(F, Inputs) ->
+    lists:foreach(fun(K) -> 
+                          spawn(fun() -> 
+                                        try  
+                                            {ok, FileData} = fs:read(K, reduce),
+                                            {ok, {K2, Value}} = emit(F({K, FileData}))
+                                        of
+                                            _ -> 
+                                                {ok, _} = fs:write({K2, Value}, result),
+                                                put_completed(K)
+                                        catch
+                                            _:_ -> 
+                                                put_failed(K)
+                                        end
+
+                                end)
+                  end,
+                  Inputs).    
+
+%% Callbacks
 init([]) ->
     {ok, #reducer_data{}}.
 
@@ -58,23 +79,8 @@ handle_cast(run, #reducer_data{input = []} = Data) ->
 handle_cast(run, #reducer_data{function = undefined} = Data) ->
     io:format("Error: function is nil. Please provide a reduce function"),
     {noreply, Data};
-handle_cast(run, #reducer_data{function = Map, input = Inputs} = Data) ->
-    F = fun(K) -> 
-                spawn(fun() -> 
-                              try  
-                                  {ok, FileData} = fs:read(K, reduce),
-                                  {ok, _Emitted} = emit(Map({K, FileData}))
-                              of
-                                  _ -> 
-                                      put_completed(K)
-                              catch
-                                  _:_ -> 
-                                      put_failed(K)
-                              end
-
-                      end)
-        end,
-    lists:foreach(F, Inputs),
+handle_cast(run, #reducer_data{function = Reduce, input = Inputs} = Data) ->
+    spawn_reducers(Reduce, Inputs),
     {noreply, Data};
 
 handle_cast({put_completed, Key}, #reducer_data{input = Input} = Data) ->
