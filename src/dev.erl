@@ -3,7 +3,7 @@
 
 mapreduce() ->
     Inputs = lists:map(fun(N) -> "pokemon_" ++ integer_to_list(N) end, lists:seq(1,1200)),
-    Map = fun({_K, V}) -> 
+    mr:define_map(fun({_K, V}) -> 
                   Pokemon = jsx:decode(V),
                   Types = maps:get(<<"types">>, Pokemon),
                   Data = #{<<"name">> => maps:get(<<"name">>, Pokemon),
@@ -13,8 +13,8 @@ mapreduce() ->
                                     TypeName = maps:get(<<"name">>, maps:get(<<"type">>, T)),
                                     {binary_to_list(TypeName), jsx:encode(Data)}
                             end, Types)
-          end,
-    Reduce = fun({K, V}) ->
+          end),
+    mr:define_reduce(fun({K, V}) ->
                      Lines = lists:filter(fun(X) -> jsx:is_json(X) end, binary:split(V, <<"\n">>, [global])),
                      ParsedLines = lists:map(fun(X) -> jsx:decode(X) end, Lines),
                      {_, Res} = lists:foldr(fun(X, {AccWeight, Acc}) -> 
@@ -25,9 +25,7 @@ mapreduce() ->
                                                     end
                                             end, {0, nil}, ParsedLines),
                      {K, jsx:encode(Res)}
-             end,
+             end),
 
-    mapper:put_keys(Inputs),
-    mapper:put_function(Map),
-    reducer:put_function(Reduce),
-    mapper:run().
+    mr:process(Inputs).
+
