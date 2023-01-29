@@ -42,7 +42,7 @@ run() -> gen_server:cast(?MODULE, run).
 emit(KVs) when is_list(KVs) ->
     lists:map(fun({K,V}) -> emit({K,V}) end, KVs);
 emit({Key, Val}) ->
-    fs:append({Key, Val}, reduce),
+    fs:write({Key, Val}, reduce),
     reducer:put_keys(Key),
     {Key, Val}.
 

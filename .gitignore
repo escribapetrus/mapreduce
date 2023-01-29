@@ -21,3 +21,4 @@ rebar3.crashdump
 
 fs_map/*
 fs_reduce/*
+fs_result/*

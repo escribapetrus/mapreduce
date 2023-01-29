@@ -1,43 +1,61 @@
 -module(reducer_test).
 -include_lib("eunit/include/eunit.hrl").
 
-setup() -> ok.
+setup() -> 
+    mapreduce_sup:start_link(),
+    ok.
 
 reduce_test_() ->
     {setup,
      fun setup/0,
-     fun t1/0
+     [fun reduce_returns_single_value/0,
+      fun reduce_returns_multiple_values/0]
     }.
 
-t1() ->
+reduce_returns_single_value() ->
+    Inputs = ["grass", "poison"],
     Reduce = fun({K, V}) ->
-                     Lines = binary:split(V, <<"\n">>, [global]),
-                     [H|ParsedLines] = lists:map(fun(X) -> jsx:decode(X) end, Lines),
-                     Res = lists:foldr(fun(X, Acc) -> 
-                                               XWeight = maps:get(<<"weight">>, X),
-                                               AccWeight = maps:get(<<"weight">>, Acc), 
-                                               if 
-                                                   XWeight > AccWeight -> X;
-                                                   true -> Acc
-                                               end
-                                       end, H, ParsedLines),
-                     {K, Res}
+                     Lines = lists:filter(fun(X) -> jsx:is_json(X) end, binary:split(V, <<"\n">>, [global])),
+                     ParsedLines = lists:map(fun(X) -> jsx:decode(X) end, Lines),
+                     {_, Res} = lists:foldr(fun(X, {AccWeight, Acc}) -> 
+                                                    XWeight = maps:get(<<"weight">>, X),
+                                                    if 
+                                                        XWeight > AccWeight -> {XWeight, X};
+                                                        true -> {AccWeight, Acc}
+                                                    end
+                                            end, {0, nil}, ParsedLines),
+                     {K, jsx:encode(Res)}
              end,
 
-    {ok, Pid} = reducer:start_link(),
-    reducer:put_keys([
-                      "mammals",
-                      "plants",
-                      "reptiles"]),
+    reducer:put_keys(Inputs),
     reducer:put_function(Reduce),
     reducer:run(),
 
     timer:sleep(1000),
 
-    ?assertEqual(
-       sys:get_state(Pid), 
-       {reducer_data,Reduce,
-        ["mammals","plants","reptiles"],
-        ["reptiles","plants","mammals"],
-        []}).
+    {reducer_data, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
+    true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).
 
+reduce_returns_multiple_values() ->
+    Inputs = ["grass", "poison"],
+    Reduce = fun({K, V}) ->
+                     Lines = lists:filter(fun(X) -> jsx:is_json(X) end, binary:split(V, <<"\n">>, [global])),
+                     ParsedLines = lists:map(fun(X) -> jsx:decode(X) end, Lines),
+                     {_, Res} = lists:foldr(fun(X, {AccWeight, Acc}) -> 
+                                                    XWeight = maps:get(<<"weight">>, X),
+                                                    if 
+                                                        XWeight > AccWeight -> {XWeight, X};
+                                                        true -> {AccWeight, Acc}
+                                                    end
+                                            end, {0, nil}, ParsedLines),
+                     [{K, jsx:encode(Res)}, {K ++ "_otherfile", jsx:encode(Res)}]
+             end,
+
+    reducer:put_keys(Inputs),
+    reducer:put_function(Reduce),
+    reducer:run(),
+
+    timer:sleep(1000),
+
+    {reducer_data, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
+    true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).

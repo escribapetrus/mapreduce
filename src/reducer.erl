@@ -3,7 +3,9 @@
 %% and applying the Reduce Function
 %%
 %% The Reduce Function has the following signature: 
-%% ({K1 :: binary(), V1 :: binary()} -> {K2 :: binary(), V2 :: binary()}
+%% ({K1, V1} -> {K2, V2} | [{K2, V2}]
+%% where K1 = V1 = K2 = V2 = binary()
+
 %% where V1 is a file that collects all values for a given key,
 %% and V2 is the final result for a given key.
 %%
@@ -35,22 +37,23 @@ put_failed(Key) -> gen_server:cast(?MODULE, {put_failed, Key}).
 run() -> gen_server:cast(?MODULE, run).
 
 %% Private functions
+emit(KVs) when is_list(KVs) ->
+    lists:map(fun({K,V}) -> emit({K, V}) end, KVs);
 emit({Key, Val}) ->
-    io:format("Emitted: KEY[~p], VAL[~p]~n", [Key, Val]),
-    {ok, {Key, Val}}.
+    fs:write({Key, Val}, result),
+    {Key, Val}.
 
 spawn_reducers(F, Inputs) ->
     lists:foreach(fun(K) -> 
                           spawn(fun() -> 
                                         try  
                                             {ok, FileData} = fs:read(K, reduce),
-                                            {ok, {K2, Value}} = emit(F({K, FileData}))
+                                            emit(F({K, FileData}))
                                         of
                                             _ -> 
-                                                {ok, _} = fs:write({K2, Value}, result),
                                                 put_completed(K)
                                         catch
-                                            _:_ -> 
+                                            _:_ ->
                                                 put_failed(K)
                                         end
 

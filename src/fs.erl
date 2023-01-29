@@ -3,7 +3,7 @@
 %% the Reduce and Map file systems.
 
 -module(fs).
--export([read/2, read/3, write/2, append/2]).
+-export([read/2, read/3, write/2]).
 
 read(Filename, map) ->
     file:read_file("fs_map/" ++ Filename);
@@ -17,9 +17,8 @@ read(Filename, reduce, {as, json}) ->
     {ok, Data} = read(Filename, reduce),
     {ok, jsx:decode(Data)}.
 
-append({Filename, Content}, reduce) ->
-    file:write_file("fs_reduce/" ++ Filename, <<Content/binary, "\n">>, [append]).
-
+write({Filename, Content}, reduce) ->
+    file:write_file("fs_reduce/" ++ Filename, <<Content/binary, "\n">>, [append]);
 write({Filename, Content}, map) ->
     file:write_file("fs_map/" ++ Filename, Content, []);
 write({Filename, Content}, result) ->

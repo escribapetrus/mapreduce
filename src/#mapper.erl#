@@ -3,7 +3,8 @@
 %% and applying the Map function.
 %%
 %% The Map function has the following signature:
-%% ({K, V}) -> {K2 :: binary(), V2 :: binary()} | [{K2, V2}]
+%% ({K, V}) -> {K2, V2} | [{K2, V2}]
+%% where K = V = K2 = V2 = binary()
 %%
 %% every key spawns a process concurrently maps the data.
 
