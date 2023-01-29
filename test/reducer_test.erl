@@ -33,7 +33,7 @@ reduce_returns_single_value() ->
 
     timer:sleep(1000),
 
-    {reducer_data, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
+    {reducer, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
     true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).
 
 reduce_returns_multiple_values() ->
@@ -57,5 +57,5 @@ reduce_returns_multiple_values() ->
 
     timer:sleep(1000),
 
-    {reducer_data, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
+    {reducer, Reduce, SourceInputs, Completed, _Failed} = sys:get_state(reducer),
     true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).

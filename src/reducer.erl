@@ -18,7 +18,7 @@
 -export([start_link/0, put_function/1, put_keys/1, run/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
--record(reducer_data, {function = undefined,
+-record(reducer, {function = undefined,
                        input = [],
                        completed = [],
                        failed = []}).
@@ -35,6 +35,61 @@ put_completed(Key) -> gen_server:cast(?MODULE, {put_completed, Key}).
 put_failed(Key) -> gen_server:cast(?MODULE, {put_failed, Key}).
 
 run() -> gen_server:cast(?MODULE, run).
+
+
+
+%% Callbacks
+init([]) ->
+    {ok, #reducer{}}.
+
+handle_call(_, _, Data) ->
+    {reply, Data, Data}.
+
+handle_cast({put_function, F}, Data) ->
+    {noreply, Data#reducer{function=F}};
+
+handle_cast({put_keys, [H| _] = Keys}, Data) when is_list(H) ->
+    {noreply, Data#reducer{input = Keys}};
+handle_cast({put_keys, Key}, Data) ->
+    {noreply, Data#reducer{input = [Key | Data#reducer.input]}};
+
+handle_cast(run, #reducer{input = []} = Data) ->
+    io:format("Error: input is empty. Please provide keys to be mapped~n", []),
+    {noreply, Data};
+handle_cast(run, #reducer{function = undefined} = Data) ->
+    io:format("Error: function is nil. Please provide a reduce function"),
+    {noreply, Data};
+handle_cast(run, #reducer{function = Reduce, input = Inputs} = Data) ->
+    spawn_reducers(Reduce, Inputs),
+    {noreply, Data};
+
+handle_cast({put_completed, Key}, #reducer{input = Input} = Data) ->
+    NewData = 
+        {reducer, _, _, Completed, Failed} = 
+        append_data(completed, Key, Data),
+
+    if length(Completed) + length(Failed) == length(Input) ->
+            io:format("Finished processing.~n", []),
+            {noreply, NewData};
+       true ->
+            io:format("Reducer: Received new key as completed.~n", []),
+            {noreply, NewData}
+    end;
+
+handle_cast({put_failed, Key}, #reducer{input = Input} = Data) ->
+    NewData = 
+        {mapper_data, _, _, Completed, Failed} = 
+        append_data(failed, Key, Data),
+
+    if length(Completed) + length(Failed) == length(Input) ->
+            io:format("Finished processing.~n", []),
+            {noreply, NewData};
+       true ->
+            io:format("Reducer: Received new key as failed.~n", []),
+            {noreply, NewData}
+    end.
+
+terminate(normal, _State) -> ok.
 
 %% Private functions
 emit(KVs) when is_list(KVs) ->
@@ -61,51 +116,7 @@ spawn_reducers(F, Inputs) ->
                   end,
                   Inputs).    
 
-%% Callbacks
-init([]) ->
-    {ok, #reducer_data{}}.
-
-handle_call(_, _, Data) ->
-    {reply, Data, Data}.
-
-handle_cast({put_function, F}, Data) ->
-    {noreply, Data#reducer_data{function=F}};
-
-handle_cast({put_keys, Keys}, Data) when is_list(Keys) ->
-    {noreply, Data#reducer_data{input = Keys}};
-handle_cast({put_keys, Key}, Data) ->
-    {noreply, Data#reducer_data{input = [Key | Data#reducer_data.input]}};
-
-handle_cast(run, #reducer_data{input = []} = Data) ->
-    io:format("Error: input is empty. Please provide keys to be mapped~n", []),
-    {noreply, Data};
-handle_cast(run, #reducer_data{function = undefined} = Data) ->
-    io:format("Error: function is nil. Please provide a reduce function"),
-    {noreply, Data};
-handle_cast(run, #reducer_data{function = Reduce, input = Inputs} = Data) ->
-    spawn_reducers(Reduce, Inputs),
-    {noreply, Data};
-
-handle_cast({put_completed, Key}, #reducer_data{input = Input} = Data) ->
-    NewData = Data#reducer_data{completed = [Key | Data#reducer_data.completed]},
-    Processed = lists:flatten([NewData#reducer_data.completed, NewData#reducer_data.failed]),
-    if length(Input) == length(Processed)  ->
-            io:format("Finished processing.~n", []),
-            {noreply, NewData};
-       true ->
-            io:format("Received new key as completed.~n", []),
-            {noreply, NewData}
-    end;
-
-handle_cast({put_failed, Key}, #reducer_data{input = Input} = Data) ->
-    NewData = Data#reducer_data{failed = [Key | Data#reducer_data.failed]},
-    Processed = lists:flatten([NewData#reducer_data.completed, NewData#reducer_data.failed]),
-    if length(Input) == length(Processed)  ->
-            io:format("Finished processing.~n", []),
-            {noreply, NewData};
-       true ->
-            io:format("Received new key as failed.~n", []),
-            {noreply, NewData}
-    end.
-
-terminate(normal, _State) -> ok.
+append_data(completed, Key, #reducer{completed = Completed} = Data) ->
+    Data#reducer{completed = [Key | Completed]};
+append_data(failed, Key, #reducer{failed = Failed} = Data) ->
+    Data#reducer{failed = [Key | Failed]}.

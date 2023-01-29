@@ -27,7 +27,7 @@ map_returns_single_value() ->
 
     timer:sleep(1000),
 
-    {mapper_data, Map, SourceInputs, Completed, _Failed} = sys:get_state(mapper),
+    {mapper, Map, SourceInputs, Completed, _Failed} = sys:get_state(mapper),
     true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).
 
 map_returns_multiple_values() ->
@@ -50,5 +50,5 @@ map_returns_multiple_values() ->
     timer:sleep(1000),
 
 
-    {mapper_data, Map, SourceInputs, Completed, _Failed} = sys:get_state(mapper),
+    {mapper, Map, SourceInputs, Completed, _Failed} = sys:get_state(mapper),
     true = lists:all(fun(X) -> lists:member(X, Completed) end, SourceInputs).

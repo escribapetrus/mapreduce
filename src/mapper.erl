@@ -16,11 +16,11 @@
 -module(mapper).
 -behaviour(gen_server).
 
--export([start_link/0, put_function/1, put_keys/1, run/0]).
+-export([start_link/0, put_function/1, put_keys/1, run/0, put_completed/1]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
 
--record(mapper_data, {function = undefined, 
+-record(mapper, {function = undefined, 
                       input = [], 
                       completed = [], 
                       failed = []}).
@@ -66,50 +66,61 @@ spawn_mappers(F, Inputs) ->
 
 %% Callbacks
 init([]) ->
-    {ok, #mapper_data{}}.
+    {ok, #mapper{}}.
 
 handle_call(_, _, Data) ->
     {reply, Data, Data}.
 
 handle_cast({put_function, F}, Data) ->
-    {noreply, Data#mapper_data{function=F}};
+    {noreply, Data#mapper{function=F}};
 
-handle_cast({put_keys, Keys}, Data) when is_list(Keys) ->
-    {noreply, Data#mapper_data{input = Keys}};
+handle_cast({put_keys, [H|_] = Keys}, Data) when is_list(H) ->
+    {noreply, Data#mapper{input = Keys}};
 handle_cast({put_keys, Key}, Data) ->
-    {noreply, Data#mapper_data{input = [Key | Data#mapper_data.input]}};
+    {noreply, Data#mapper{input = [Key | Data#mapper.input]}};
 
-handle_cast(run, #mapper_data{input = []} = Data) ->
+handle_cast(run, #mapper{input = []} = Data) ->
     io:format("Error: input is empty. Please provide keys to be mapped~n", []),
     {noreply, Data};
-handle_cast(run, #mapper_data{function = undefined} = Data) ->
+handle_cast(run, #mapper{function = undefined} = Data) ->
     io:format("Error: function is nil. Please provide a map function"),
     {noreply, Data};
-handle_cast(run, #mapper_data{function = Map, input = Inputs} = Data) ->
+handle_cast(run, #mapper{function = Map, input = Inputs} = Data) ->
     spawn_mappers(Map, Inputs), 
     {noreply, Data};
 
-handle_cast({put_completed, Key}, #mapper_data{input = Input} = Data) ->
-    NewData = Data#mapper_data{completed = [Key | Data#mapper_data.completed]},
-    Processed = lists:flatten([NewData#mapper_data.completed, NewData#mapper_data.failed]),
-    if length(Input) == length(Processed)  ->
-            io:format("Finished processing.~n", []),
-            {noreply, NewData};
-       true ->
-            io:format("Received new key as completed.~n", []),
-            {noreply, NewData}
-    end;
+handle_cast({put_completed, Key}, #mapper{input = Input} = Data) ->
+    NewData = 
+        {mapper, _, _, Completed, Failed} = 
+        append_data(completed, Key, Data),
 
-handle_cast({put_failed, Key}, #mapper_data{input = Input} = Data) ->
-    NewData = Data#mapper_data{failed = [Key | Data#mapper_data.failed]},
-    Processed = lists:flatten([NewData#mapper_data.completed, NewData#mapper_data.failed]),
-    if length(Input) == length(Processed)  ->
+    if length(Completed) + length(Failed) == length(Input) ->
             io:format("Finished processing.~n", []),
             reducer:run(),
             {noreply, NewData};
        true ->
-            io:format("Received new key as failed.~n", []),
+            io:format("Mapper: Received new key as completed.~n", []),
+            {noreply, NewData}
+    end;
+
+handle_cast({put_failed, Key}, #mapper{input = Input} = Data) ->
+    NewData = 
+        {mapper, _, _, Completed, Failed} = 
+        append_data(failed, Key, Data),
+
+    if length(Completed) + length(Failed) == length(Input) ->
+            io:format("Finished processing.~n", []),
+            sys:get_status(reducer),
+            reducer:run(),
+            {noreply, NewData};
+       true ->
+            io:format("Mapper: received new key as failed.~n", []),
             {noreply, NewData}
     end.
 
 terminate(normal, _State) -> ok.
+
+append_data(completed, Key, #mapper{completed = Completed} = Data) ->
+    Data#mapper{completed = [Key | Completed]};
+append_data(failed, Key, #mapper{failed = Failed} = Data) ->
+    Data#mapper{failed = [Key | Failed]}.
