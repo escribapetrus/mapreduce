@@ -19,9 +19,9 @@
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
 -record(reducer, {function = undefined,
-                       input = [],
-                       completed = [],
-                       failed = []}).
+                  input = [],
+                  completed = [],
+                  failed = []}).
 
 %% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).

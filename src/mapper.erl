@@ -7,23 +7,17 @@
 %%
 %% every key spawns a process concurrently maps the data.
 
-%% TODO: 
-%% Two options:
-%% - emit appends data to a file in the reducer file system,
-%%   then processed when the mapper finishes processing (receives all keys as completed/failed)
-%% - emit passes the processed KV to the reducer in memory
-
 -module(mapper).
 -behaviour(gen_server).
 
--export([start_link/0, put_function/1, put_keys/1, run/0, put_completed/1]).
+-export([start_link/0, put_function/1, put_keys/1, run/0]).
 -export([init/1, terminate/2, handle_cast/2, handle_call/3]).
 
 
 -record(mapper, {function = undefined, 
-                      input = [], 
-                      completed = [], 
-                      failed = []}).
+                 input = [], 
+                 completed = [], 
+                 failed = []}).
 
 %% API
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
