@@ -1,34 +1,24 @@
-%%%-------------------------------------------------------------------
-%% @doc mapreduce top level supervisor.
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(mapreduce_sup).
 
 -behaviour(supervisor).
 
--export([start_link/0]).
+-export([start_link/2]).
 
 -export([init/1]).
 
 -define(SERVER, ?MODULE).
 
-start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+start_link(NumMappers, NumReducers) ->
+    supervisor:start_link({local, ?SERVER}, ?MODULE, {NumMappers, NumReducers}).
 
-%% sup_flags() = #{strategy => strategy(),         % optional
-%%                 intensity => non_neg_integer(), % optional
-%%                 period => pos_integer()}        % optional
-%% child_spec() = 
-init([]) ->
+init({NumMappers, NumReducers}) ->
     SupFlags = #{strategy => one_for_all,
                  intensity => 0,
                  period => 1},
     ChildSpecs = [
-                  #{id => mapper, start => {mapper, start_link, []}},      
-                  #{id => reducer, start => {reducer, start_link, []}}     
+                  #{id => map_sup, start => {map_sup, start_link, [NumMappers]}},      
+                  #{id => reduce_sup, start => {reduce_sup, start_link, [NumReducers]}}     
                  ],
     {ok, {SupFlags, ChildSpecs}}.
 
-%% internal functions
 
