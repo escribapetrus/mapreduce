@@ -3,7 +3,7 @@
 %% the Reduce and Map file systems.
 
 -module(fs).
--export([read/2, read/3, write/2, delete/2]).
+-export([read/2, read/3, write/2]).
 
 read(Filename, map) ->
     file:read_file("fs_map/" ++ Filename);
@@ -24,10 +24,3 @@ write({Filename, Content}, reduce) ->
 write({Filename, Content}, result) ->
     file:write_file("fs_result/" ++ Filename, Content, []).
 
-delete(Filename, map) -> 
-    file:delete("fs_map/" ++ Filename);
-delete(Filename, reduce) -> 
-    file:delete("fs_reduce/" ++ Filename);
-delete(Filename, result) -> 
-    file:delete("fs_result/" ++ Filename). 
-    

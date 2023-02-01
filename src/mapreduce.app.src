@@ -8,8 +8,8 @@
     stdlib
    ]},
   {env,[
-	{map_sup, [{num_workers, 5}]},
-  	{reduce_sup, [{num_workers, 5}]}
+        {map_sup, [{num_workers, 5}]},
+        {reduce_sup, [{num_workers, 5}]}
        ]},
   {modules, []},
 
