@@ -1,7 +1,5 @@
 # mapreduce
 
-**UNDER CONSTRUCTION**
-
 MapReduce is a massively parallel program for data analysis.
 The program is structured as a higher-order function, inspired by Lisp and functional programming.
 
