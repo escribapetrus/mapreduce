@@ -33,16 +33,21 @@ First, compile the project. You can run it in the Rebar3 shell.
 In order to use MapReduce:
 1. Store the data set in the **Mapper File System** folder `fs_map/`, where every file is a single data item
    in a format you can compute (raw, json, csv...);
+   
 2. Define a **Map function**, using `mr:define_map/1`. 
    Map computes the data item and adds the result to the reducer.
    Mapped data items are grouped by key in the **Reducer File System** `fs/reduce`.
    Map has the following signature: 
+   
    `(K1 :: binary(), V1 :: binary()) -> {K2 :: binary(), V2 :: binary()} | list({K2, V2})`;
+   
 3. Define a **Reduce function**, using `mr:define_reduce/1`. 
    Result computes the data items grouped in a key into a single result.
    The result is stored by key in the **Result File System** `fs/result`. 
    Map has the following signature: 
+   
    `(K1 :: binary(), V1 :: binary()) -> {K2 :: binary(), V2 :: binary()} | list({K2, V2})`;
+   
 4. Process the list of keys you want by passing it to `mr:process/1`.
 
 
