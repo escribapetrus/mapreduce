@@ -17,10 +17,10 @@ read(Filename, reduce, {as, json}) ->
     {ok, Data} = read(Filename, reduce),
     {ok, jsx:decode(Data)}.
 
-write({Filename, Content}, reduce) ->
-    file:write_file("fs_reduce/" ++ Filename, <<Content/binary, "\n">>, [append]);
 write({Filename, Content}, map) ->
     file:write_file("fs_map/" ++ Filename, Content, []);
+write({Filename, Content}, reduce) ->
+    file:write_file("fs_reduce/" ++ Filename, <<Content/binary, "\n">>, [append]);
 write({Filename, Content}, result) ->
     file:write_file("fs_result/" ++ Filename, Content, []).
 
