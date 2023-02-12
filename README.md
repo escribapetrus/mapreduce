@@ -11,7 +11,7 @@ with the simple task of defining two functions that define how the data is suppo
 As stated by the original paper on the subject:
 >MapReduce is a programming model and an associated implementation for processing and generating
 >large data sets. Users specify a /map/ function that processes a key-value pair to generate
->a set of intermediate key/value pair, and a /reduce/ function that merges all intermediare values
+>a set of intermediate key/value pair, and a /reduce/ function that merges all intermediate values
 >associated with the same intermediate key.
 >
 >We designed a new abstraction that allows us to express the simple computations we were trying to perform
@@ -50,19 +50,13 @@ In order to use MapReduce:
 
 ## Architecture
 Concurrent programs in Erlang run in execution units called processes. For the purposes of our implementation of MapReduce,
-all nodes -- master, mapper, reducer, general workers -- are processes.
-
-Our implementation consists of 4 core elements and 2 supporting elements:
-- supervisor (1)
-- mapper server (1)
-- mapper workers (N) where N = length(MapKeys) 
-- reducer server (1)
-- reducer workers (N) where N = length(ReduceKeys)
+all nodes (e.g. mappers, reducers) are processes.
 
 Erlang concurrent programs are structured in *supervision trees*. This is a hierarchical structure where certain parent processes,
-called *supervisors*, spawn, monitor and restart child processes (which can be either supervisors or of other types).
-Our implementation uses only a single supervisor for the mapper and reducer servers.
+called *supervisors*, spawn, monitor and restart child processes (which can be either supervisors or workers).
 
+Our implementation allows spawning N map and reduce servers, and spawns concurrent processes for every key 
+to be mapped or reduced.
 
 ## Example
 In the Rebar3 shell, we run the following program to get the heaviest pokemon for each type (e.g. grass, fire, rock).
@@ -93,5 +87,5 @@ In the Rebar3 shell, we run the following program to get the heaviest pokemon fo
                      {K, jsx:encode(Res)}
              end),
 
-    mr:process(Inputs).
+    mr:run(Inputs).
 ```

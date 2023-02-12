@@ -47,7 +47,7 @@ mapreduce(seq) ->
                               KVs when is_list(KVs) ->
                                   lists:foreach(fun({K1,V1}) -> fs:write({K1, V1}, reduce) end, KVs);
 
-                              {K1,_V1} = KV ->
+                              KV ->
                                   fs:write(KV, reduce)
                           catch
                               _:_ -> 
@@ -71,9 +71,9 @@ mapreduce(seq) ->
                               {K, jsx:encode(Res)}
                           of
                               KVs when is_list(KVs) ->
-                                  lists:foreach(fun({K1,V1}) -> fs:write({K1, V1}, reduce), K1 end, KVs);
-                              {K1,_V1} = KV ->
-                                  fs:write(KV, reduce), K1
+                                  lists:foreach(fun(KV) -> fs:write(KV, reduce) end, KVs);
+                              KV ->
+                                  fs:write(KV, reduce)
                           catch
                               _:_ -> 
                                   io:format("[Reduce] failed to process key ~p.~n", [K]),
