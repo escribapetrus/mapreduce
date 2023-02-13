@@ -31,4 +31,3 @@ init({Mappers, Reducers}) ->
                  ],
     {ok, {SupFlags, ChildSpecs}}.
 
-
