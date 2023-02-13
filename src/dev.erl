@@ -2,7 +2,7 @@
 -export([mapreduce/0, mapreduce/1]).
 
 mapreduce() ->
-    Inputs = lists:map(fun(N) -> "pokemon_" ++ integer_to_list(N) end, lists:seq(1,1300)),
+    Input = lists:map(fun(N) -> "pokemon_" ++ integer_to_list(N) end, lists:seq(1,1020)),
     mr:define_map(fun({_K, V}) -> 
                           Pokemon = jsx:decode(V),
                           Types = maps:get(<<"types">>, Pokemon),
@@ -26,8 +26,7 @@ mapreduce() ->
                                                     end, {0, nil}, ParsedLines),
                              {K, jsx:encode(Res)}
                      end),
-
-    mr:process(Inputs).
+    mr:run(Input).
 
 mapreduce(seq) ->
     MapKeys = lists:map(fun(N) -> "pokemon_" ++ integer_to_list(N) end, lists:seq(1,1200)),
