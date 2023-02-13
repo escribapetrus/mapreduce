@@ -12,7 +12,7 @@ start_link(Mappers, Reducers) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, {Mappers, Reducers}).
 
 init({Mappers, Reducers}) ->
-    SupFlags = #{strategy => one_for_one,
+    SupFlags = #{strategy => one_for_all,
                  intensity => 0,
                  period => 1},
     ChildSpecs = [

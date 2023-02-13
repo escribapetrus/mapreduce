@@ -11,6 +11,8 @@ define_reduce(F) ->
                   reduce_sup:list_pids()).
 
 run(Keys) ->
-    mr_manager:put_keys(Keys, map),
-    timer:sleep(5),
+    put_keys(Keys, map),
     mr_manager:run(map).
+
+put_keys([H | _] = Keys, Type) when is_list(H) ->
+    lists:foreach(fun(K) -> mr_manager:put_key(K, Type) end, Keys).
